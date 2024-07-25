@@ -16,6 +16,7 @@ venv/
 db.sqlite3
 media/
 staticfiles/
+.idea
 .idea/
 ../.idea/
 static/

@@ -1,12 +1,11 @@
 import os
 
 from pathlib import Path
-from datetime import timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent or '*' * 50
 
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
@@ -24,7 +23,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # libraries
-    'knox',
+    'ninja',
 
     # applications
     'users',
@@ -97,13 +96,3 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-REST_KNOX = {
-    'SECURE_HASH_ALGORITHM': 'cryptography.hazmat.primitives.hashes.SHA512',
-    'AUTH_TOKEN_CHARACTER_LENGTH': 64,
-    'TOKEN_TTL': timedelta(hours=24),
-    'TOKEN_LIMIT_PER_USER': 1,
-    'AUTO_REFRESH': True,
-    'MIN_REFRESH_INTERVAL': 11 * 60 * 60,
-    'EXPIRY_DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%S.%fZ',
-}

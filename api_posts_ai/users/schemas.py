@@ -1,5 +1,5 @@
 from ninja import Schema
-from pydantic import EmailStr, constr
+from pydantic import EmailStr, SecretStr, constr
 
 
 class UserCreateSchema(Schema):
@@ -8,9 +8,17 @@ class UserCreateSchema(Schema):
     email: EmailStr
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class UserCreateSuccessSchema(UserCreateSchema):
+    id: int
+
+
+class ErrorSchema(Schema):
+    message: str
 
 
 class UserLoginSchema(Schema):
     username: str
-    password: str
+    password: SecretStr

@@ -1,12 +1,14 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
 from ninja import NinjaAPI
+from users.views import users_router
 
 
-users_api = NinjaAPI()
+api = NinjaAPI()
+api.add_router("/users/", users_router)
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', users_api.urls),
-    path('', include('users.urls')),
+    path('api/', api.urls),
 ]
