@@ -11,13 +11,21 @@ class UserCreateSchema(Schema):
         from_attributes = True
 
 
-class UserCreateSuccessSchema(UserCreateSchema):
+class UserCreateSuccessSchema(Schema):
     id: int
+    username: str
+    email: str
 
 
 class ErrorSchema(Schema):
-    message: str
+    error: str
 
+
+class TokenSchema(Schema):
+    token: str
+
+class MessageSchema(Schema):
+    message: str
 
 class UserLoginSchema(Schema):
     username: str

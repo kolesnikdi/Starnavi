@@ -1,13 +1,14 @@
 import os
+from datetime import timedelta
 
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parent.parent or '*' * 50
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = os.environ.get('SECRET_KEY')  or '*' * 50
 
 DEBUG = True
 
@@ -96,3 +97,5 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+JWT_TTL = timedelta(seconds=24*60*60)

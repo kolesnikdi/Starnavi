@@ -1,6 +1,12 @@
+from django.conf import settings
+
 import pytest
 import random
 import string
+import jwt
+from datetime import datetime, timedelta
+
+from django.contrib.auth.models import User
 from ninja.testing import TestClient
 
 from users.views import users_router
@@ -47,3 +53,24 @@ class Randomizer:
 @pytest.fixture
 def api_client():
     return TestClient(users_router)
+
+
+@pytest.fixture(scope='function')
+# def user(django_user_model, randomizer):
+def user(randomizer):
+    data = randomizer.user()
+    # user = django_user_model.objects.create_user(**data)
+    user = User.objects.create_user(**data)
+    user.user_password = data['password']
+    return user
+
+@pytest.fixture
+def auth_user(api_client, user, ):
+    api_client.token = jwt.encode({
+        'user_id': user.id,
+        'exp': datetime.utcnow() + timedelta(seconds=60),
+        'iat': datetime.utcnow()
+    }, settings.SECRET_KEY, algorithm='HS256')
+    api_client.user = user
+    api_client.headers = {"Authorization": f"Bearer {api_client.token}"}
+    return api_client
