@@ -3,7 +3,7 @@ import random
 import string
 from ninja.testing import TestClient
 
-from api_posts_ai.urls import api
+from users.views import users_router
 
 """randomizers"""
 
@@ -46,5 +46,4 @@ class Randomizer:
 
 @pytest.fixture
 def api_client():
-    client = TestClient()
-    return client
+    return TestClient(users_router)

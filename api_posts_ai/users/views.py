@@ -15,4 +15,4 @@ def register(request, user: UserCreateSchema):
     except IntegrityError:
         return 400, {'message': 'Username or email already exists'}
     except Exception as e:
-        return 400, {'message': str(e)}
+        return 400, {'message': str(e.args)}
