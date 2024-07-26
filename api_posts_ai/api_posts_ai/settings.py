@@ -28,6 +28,7 @@ INSTALLED_APPS = [
 
     # applications
     'users',
+    'posts_comments',
 ]
 
 MIDDLEWARE = [
@@ -98,4 +99,4 @@ MEDIA_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-JWT_TTL = timedelta(seconds=24*60*60)
+JWT_TTL = timedelta(seconds=15*60)

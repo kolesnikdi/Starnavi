@@ -1,9 +1,9 @@
 from django.contrib.auth.models import User
 from django.conf import settings
+
 from ninja.security import HttpBearer
 import jwt
 from datetime import datetime
-from ninja.errors import AuthenticationError
 
 from api_posts_ai.settings import JWT_TTL
 
@@ -23,8 +23,6 @@ class AuthBearer(HttpBearer):
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
             user_id = payload['user_id']
             user = User.objects.get(id=user_id)
-            if not user.is_authenticated:
-                raise AuthenticationError('User is not authenticated')
             return user
         except jwt.ExpiredSignatureError:
             return None

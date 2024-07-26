@@ -3,20 +3,24 @@ from django.contrib.auth.models import User
 
 import jwt
 import pytest
-from users.views import users_router
+from datetime import datetime
+
+from posts_comments.models import Post
+from posts_comments.views import post_router
 
 
-@pytest.mark.parametrize('api_client', [users_router], indirect=True)
-class TestUsers:
+@pytest.mark.parametrize('api_client', [post_router], indirect=True)
+class TestPostsComments:
 
     @pytest.mark.django_db
-    def test_register_success(self, api_client, randomizer):
-        data = randomizer.user()
-        response = api_client.post('/register', json={**data})
+    def test_create_post_success(self, auth_user, randomizer):
+        text = randomizer.random_name_limit(50)
+        response = auth_user.post('/create', json={'text': text})
         assert response.status_code == 201
-        assert response.json()['id'] == User.objects.get(username=data['username']).id
-        assert response.json()['username'] == data['username']
-        assert response.json()['email'] == data['email']
+        assert response.json()['id'] == Post.objects.get(user_id=auth_user.user.id).id
+        assert response.json()['user_id'] == auth_user.user.id
+        assert response.json()['text'] == text
+        assert isinstance(response.json()['created_date'], datetime)
 
     @pytest.mark.django_db
     def test_register_username_exists(self, api_client, randomizer):
@@ -40,7 +44,6 @@ class TestUsers:
                    'msg'] == 'value is not a valid email address: An email address must have an @-sign.'
 
 
-@pytest.mark.parametrize('api_client', [users_router], indirect=True)
 class TestLoginLogout:
 
     @pytest.mark.django_db

@@ -6,10 +6,8 @@ import string
 import jwt
 from datetime import datetime, timedelta
 
-from django.contrib.auth.models import User
 from ninja.testing import TestClient
 
-from users.views import users_router
 
 """randomizers"""
 
@@ -51,21 +49,22 @@ class Randomizer:
 
 
 @pytest.fixture
-def api_client():
-    return TestClient(users_router)
+def api_client(request):
+    return TestClient(request.param)
 
 
 @pytest.fixture(scope='function')
-# def user(django_user_model, randomizer):
-def user(randomizer):
+def user(django_user_model, randomizer):
     data = randomizer.user()
-    # user = django_user_model.objects.create_user(**data)
-    user = User.objects.create_user(**data)
+    user = django_user_model.objects.create_user(**data)
     user.user_password = data['password']
     return user
 
+
 @pytest.fixture
 def auth_user(api_client, user, ):
+    from django.contrib.auth import authenticate
+    user = authenticate(username=user.username, password=user.user_password)
     api_client.token = jwt.encode({
         'user_id': user.id,
         'exp': datetime.utcnow() + timedelta(seconds=60),
