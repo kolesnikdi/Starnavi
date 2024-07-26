@@ -1,10 +1,6 @@
-from django.conf import settings
-from django.contrib.auth.models import User
-
-import jwt
 import pytest
-from datetime import datetime
 
+from api_posts_ai.authentication import create_token
 from posts_comments.models import Post
 from posts_comments.views import post_router
 
@@ -13,78 +9,107 @@ from posts_comments.views import post_router
 class TestPostsComments:
 
     @pytest.mark.django_db
-    def test_create_post_success(self, auth_user, randomizer):
+    def test_create_post_success(self, api_client, randomizer, user):
         text = randomizer.random_name_limit(50)
-        response = auth_user.post('/create', json={'text': text})
+        token = create_token(user)
+        response = api_client.post('/', json={'text': text}, headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 201
-        assert response.json()['id'] == Post.objects.get(user_id=auth_user.user.id).id
-        assert response.json()['user_id'] == auth_user.user.id
-        assert response.json()['text'] == text
-        assert isinstance(response.json()['created_date'], datetime)
+        response_json = response.json()
+        assert response_json['id'] == Post.objects.get(user_id=user.id).id
+        assert response_json['user_id'] == user.id
+        assert response_json['text'] == text
+        assert response_json['created_date']
 
     @pytest.mark.django_db
-    def test_register_username_exists(self, api_client, randomizer):
-        data = randomizer.user()
-        User.objects.create_user(**data)
-        response = api_client.post('/register', json={**data})
-        assert response.status_code == 400
-        assert response.json() == {'error': 'Username or email already exists'}
+    def test_create_post_valid_text(self, api_client, randomizer, user):
+        pass
 
     @pytest.mark.django_db
-    def test_register_invalid_data(self, api_client):
-        response = api_client.post('/register', json={
-            'username': 'us',
-            'password': 'pwd',
-            'email': 'invalidemail'
-        })
-        assert response.status_code == 422
-        assert response.json()['detail'][0]['msg'] == 'String should have at least 3 characters'
-        assert response.json()['detail'][1]['msg'] == 'String should have at least 8 characters'
-        assert response.json()['detail'][2][
-                   'msg'] == 'value is not a valid email address: An email address must have an @-sign.'
-
-
-class TestLoginLogout:
+    def test_create_post_invalid_text(self, api_client, randomizer, user):
+        pass
 
     @pytest.mark.django_db
-    def test_login_success(self, api_client, user, randomizer):
-        response = api_client.post('/login', json={"username": user.username, "password": user.user_password})
+    def test_create_comment_success(self, api_client, randomizer, user, new_post):
+        text = randomizer.random_name_limit(50)
+        token = create_token(user)
+        response = api_client.post(f'/{new_post.id}', json={'text': text}, headers={'Authorization': f'Bearer {token}'})
+        assert response.status_code == 201
+        response_json = response.json()
+        assert response_json['id'] == Post.objects.filter(user_id=user.id).last().id
+        assert response_json['user_id'] == user.id
+        assert response_json['text'] == text
+        assert response_json['created_date']
+
+    @pytest.mark.django_db
+    def test_create_comment_invalid_post(self, api_client, randomizer, user, new_post):
+        text = randomizer.random_name_limit(50)
+        token = create_token(user)
+        response = api_client.post('/2', json={'text': text}, headers={'Authorization': f'Bearer {token}'})
+        assert response.status_code == 404
+        response_json = response.json()
+        assert response_json['detail'] == 'Not Found'
+
+    @pytest.mark.django_db
+    def test_update_post_comment_success(self, api_client, randomizer, user, new_post):
+        old_text = new_post.text
+        text = randomizer.random_name_limit(50)
+        token = create_token(user)
+        response = api_client.patch(f'/{new_post.id}', json={'text': text}, headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        assert "token" in response.json()
-        payload = jwt.decode(response.json()['token'], settings.SECRET_KEY, algorithms=['HS256'])
-        assert payload['user_id'] == user.id
+        response_json = response.json()
+        assert response_json['id'] == Post.objects.filter(user_id=user.id).last().id
+        assert response_json['user_id'] == user.id
+        assert response_json['text'] != old_text
+        assert response_json['text'] == text
+        assert response_json['created_date']
 
     @pytest.mark.django_db
-    def test_login_failure(self, api_client, user, randomizer):
-        response = api_client.post('/login', json={"username": user.username, "password": 'user.user_password'})
-        assert response.status_code == 400
-        assert response.json() == {'error': 'Invalid credentials'}
+    def test_update_post_comment_not_owner(self, api_client, randomizer, user_2, new_post):
+        text = randomizer.random_name_limit(50)
+        token = create_token(user_2)
+        response = api_client.patch(f'/{new_post.id}', json={'text': text}, headers={'Authorization': f'Bearer {token}'})
+        assert response.status_code == 405
+        response_json = response.json()
+        assert response_json['error'] == 'This action is allowed only to the owner'
 
     @pytest.mark.django_db
-    def test_renew_token_success(self, auth_user):
-        response = auth_user.post('/renew_token', headers=auth_user.headers)
+    def test_delete_post_comment_success(self, api_client, randomizer, user, new_post):
+        token = create_token(user)
+        response = api_client.delete(f'/{new_post.id}', headers={'Authorization': f'Bearer {token}'})
+        assert response.status_code == 204
+        response_json = response.json()
+        assert response_json['detail'] == 'It was deleted successfully'
+
+    @pytest.mark.django_db
+    def test_delete_post_comment_not_owner(self, api_client, randomizer, user_2, new_post):
+        token = create_token(user_2)
+        response = api_client.delete(f'/{new_post.id}', headers={'Authorization': f'Bearer {token}'})
+        assert response.status_code == 405
+        response_json = response.json()
+        assert response_json['error'] == 'This action is allowed only to the owner'
+
+    @pytest.mark.django_db
+    def test_delete_post_comment_has_reply(self, api_client, randomizer, user, new_post):
+        text = randomizer.random_name_limit(50)
+        token = create_token(user)
+        response = api_client.post(f'/{new_post.id}', json={'text': text}, headers={'Authorization': f'Bearer {token}'})
+        assert response.status_code == 201
+        response = api_client.delete(f'/{new_post.id}', headers={'Authorization': f'Bearer {token}'})
+        assert response.status_code == 405
+        response_json = response.json()
+        assert response_json['error'] == 'You cannot delete a post with comments to it'
+
+
+    @pytest.mark.django_db
+    def test_get_post_comment_success(self, api_client, post_comments):
+        token = create_token(post_comments[0].user)
+        response = api_client.get(f'/{post_comments[0].id}', headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        assert "token" in response.json()
-        payload = jwt.decode(response.json()['token'], settings.SECRET_KEY, algorithms=['HS256'])
-        assert payload['user_id'] == auth_user.user.id
-
-    @pytest.mark.django_db
-    def test_renew_token_without_token(self, api_client):
-        response = api_client.post('/renew_token')
-        assert response.status_code == 401
-        assert response.json() == {'detail': 'Unauthorized'}
-
-    @pytest.mark.django_db
-    def test_renew_token_with_invalid_token(self, api_client):
-        headers = {"Authorization": "Bearer invalidtoken"}
-        response = api_client.post('/renew_token', headers=headers)
-        assert response.status_code == 401
-        assert response.json() == {'detail': 'Unauthorized'}
-
-    @pytest.mark.django_db
-    def test_renew_token_user_delete(self, auth_user, api_client):
-        headers = auth_user.headers
-        auth_user.user.delete()
-        response = api_client.post('/renew_token', headers=headers)
-        assert response.status_code == 401
-        assert response.json() == {'detail': 'Unauthorized'}
+        response_json = response.json()
+        assert response_json['id'] == post_comments[0].id
+        assert response_json['text'] == post_comments[0].text
+        assert response_json['created_date']
+        assert response_json['user_id'] == post_comments[0].user.id
+        assert len(response_json['descendants']) == len(post_comments) - 1
+        assert len(response_json['descendants'][0]['descendants'][0]['descendants']) == 2
+        assert response_json['descendants'][0]['descendants'][0]['descendants'][0]['descendants'] == []
