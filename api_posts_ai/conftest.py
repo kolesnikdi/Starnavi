@@ -1,15 +1,10 @@
-from django.conf import settings
-
 import pytest
 import random
 import string
-import jwt
-from datetime import datetime, timedelta
 
-from django.contrib.auth.models import User
 from ninja.testing import TestClient
 
-from users.views import users_router
+from posts_comments.models import Post
 
 """randomizers"""
 
@@ -51,26 +46,43 @@ class Randomizer:
 
 
 @pytest.fixture
-def api_client():
-    return TestClient(users_router)
+def api_client(request):
+    return TestClient(request.param)
 
 
 @pytest.fixture(scope='function')
-# def user(django_user_model, randomizer):
-def user(randomizer):
+def user(django_user_model, randomizer):
     data = randomizer.user()
-    # user = django_user_model.objects.create_user(**data)
-    user = User.objects.create_user(**data)
+    user = django_user_model.objects.create_user(**data)
     user.user_password = data['password']
     return user
 
-@pytest.fixture
-def auth_user(api_client, user, ):
-    api_client.token = jwt.encode({
-        'user_id': user.id,
-        'exp': datetime.utcnow() + timedelta(seconds=60),
-        'iat': datetime.utcnow()
-    }, settings.SECRET_KEY, algorithm='HS256')
-    api_client.user = user
-    api_client.headers = {"Authorization": f"Bearer {api_client.token}"}
-    return api_client
+
+@pytest.fixture(scope='function')
+def user_2(django_user_model, randomizer):
+    data = randomizer.user()
+    user_2 = django_user_model.objects.create_user(**data)
+    user_2.user_password = data['password']
+    return user_2
+
+
+@pytest.fixture(scope='function')
+def new_post(user, randomizer):
+    post = Post.add_root(user_id=user.id, text=randomizer.random_name_limit(50))
+    return post
+
+
+@pytest.fixture(scope='function')
+def post_comments(randomizer, new_post, user, user_2):
+    def add_comments(post, depth):
+        if depth > 0:
+            comment_1 = post.add_child(user_id=user.id if depth % 2 else user_2.id,
+                                           text=randomizer.random_name_limit(50))
+            comment_2 = post.add_child(user_id=user.id if depth % 2 else user_2.id,
+                                           text=randomizer.random_name_limit(50))
+            add_comments(comment_1, depth - 1)
+            add_comments(comment_2, depth - 1)
+
+    add_comments(new_post, 3)
+
+    return Post.objects.all()

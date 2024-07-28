@@ -24,8 +24,6 @@ class ErrorSchema(Schema):
 class TokenSchema(Schema):
     token: str
 
-class MessageSchema(Schema):
-    message: str
 
 class UserLoginSchema(Schema):
     username: str
