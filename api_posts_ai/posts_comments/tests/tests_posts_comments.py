@@ -9,7 +9,9 @@ from posts_comments.views import post_router
 class TestPostsComments:
 
     @pytest.mark.django_db
-    def test_create_post_success(self, api_client, randomizer, user):
+    def test_create_post_valid_text_success(self, api_client, randomizer, user):
+        # перевірити PostSettings
+        # перевірити валідацію тексту
         text = randomizer.random_name_limit(50)
         token = create_token(user)
         response = api_client.post('/', json={'text': text}, headers={'Authorization': f'Bearer {token}'})
@@ -21,11 +23,12 @@ class TestPostsComments:
         assert response_json['created_date']
 
     @pytest.mark.django_db
-    def test_create_post_valid_text(self, api_client, randomizer, user):
+    def test_create_post_invalid_text(self, api_client, randomizer, user):
+        # перевірити валідацію тексту    is_blocked = = True)
         pass
 
     @pytest.mark.django_db
-    def test_create_post_invalid_text(self, api_client, randomizer, user):
+    def update_post_settings(self, api_client, randomizer, user):
         pass
 
     @pytest.mark.django_db
