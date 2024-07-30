@@ -21,6 +21,10 @@ class ErrorSchema(Schema):
     error: str
 
 
+class DetailSchema(Schema):
+    detail: str
+
+
 class TokenSchema(Schema):
     token: str
 

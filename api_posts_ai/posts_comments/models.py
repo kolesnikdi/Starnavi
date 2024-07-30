@@ -6,44 +6,61 @@ from django.dispatch import receiver
 from treebeard.mp_tree import MP_Node
 import time
 
-from api_posts_ai.gemini_api import perform_ai_task_or_dialogue
+from api_posts_ai.constants import ReplyDialogue
+from api_posts_ai.gemini_api import ai
 
 
 class Post(MP_Node):
     user = models.ForeignKey(User, related_name='posts', on_delete=models.DO_NOTHING)
-    text = models.CharField(max_length=102400)     # max 100kb
+    text = models.CharField(max_length=102400)  # max 100kb
     created_date = models.DateTimeField(auto_now=True)
     is_blocked = models.BooleanField(default=False)
-    # is_ai_comment = models.BooleanField(default=False)
+    is_ai_comment = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.text
+        return str(self.id)
 
 
 class PostSettings(models.Model):
     post = models.ForeignKey(Post, related_name='settings', on_delete=models.CASCADE)
     is_ai_reply = models.BooleanField(default=False)
+    # max time_sleep = 2 hours
     time_sleep = models.PositiveSmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(7200)], default=0)
     creativity = models.FloatField(validators=[MinValueValidator(0.0), MaxValueValidator(1.0)], default=0.5)
+    reply_or_dialogue = models.SmallIntegerField(choices=ReplyDialogue.choices, default=ReplyDialogue.REPLY)
+    base_reply = models.CharField(max_length=1024, default='I\'m not available right now. I will answer later')
 
 
 @receiver(post_save, sender=Post)
-def create_post_settings(sender, instance, created, **kwargs):
-    if created and instance.is_root() and instance.is_blocked is False:
-    # if created and instance.is_root() and not instance.is_blocked:
-        PostSettings.objects.create(post=instance)
-    if created and not instance.is_root() and instance.is_blocked is False:
+def create_ai_reply(sender, instance: Post, created: bool, **kwargs):
+    # It's better to send to Celery
+    if created and not instance.is_root() and not instance.is_blocked and not instance.is_ai_comment:
         post = instance.get_root()
-        if post.settings.is_ai_reply is True:
-            time.sleep(post.settings.timesleep)
-            # Якщо нема кеша
+        post_settings = post.settings.get()
+        if not post_settings.is_ai_reply:
+            return
+        if post_settings.reply_or_dialogue == ReplyDialogue.REPLY:
+            parent = instance.get_parent()
+            if not parent.is_root():
+                return
             messages = [{'role': 'model', 'parts': [post.text]}, {'role': 'user', 'parts': [instance.text]}]
-            reply = perform_ai_task_or_dialogue(messages, post.settings.time_sleep)  # обробити Exception
-            messages.append({'role': 'model', 'parts': [reply]})
-            # Зберегти в кеш
-            # Якщо кеш
-            # дістати
-            messages.append({'role': 'user', 'parts': [instance.text]})
-            reply = perform_ai_task_or_dialogue(messages, post.settings.time_sleep)  # обробити Exception
-            messages.append({'role': 'model', 'parts': [reply]})
-            # Зберегти в кеш
+            time.sleep(post_settings.time_sleep)
+            if not (reply := ai.reply(messages, post_settings.creativity)):
+                reply = post_settings.base_reply
+            instance.add_child(user_id=post.user.id, text=reply, is_ai_comment=True)
+        if post_settings.reply_or_dialogue == ReplyDialogue.DIALOGUE:
+            time.sleep(post_settings.time_sleep)
+            tree_queryset = Post.get_tree(post)
+            dialogue_queryset = tree_queryset.filter(user_id__in=[post.user.id, instance.user.id])
+            roles = ['model', 'user']
+            messages = []
+            for number, comment in enumerate(dialogue_queryset):
+                role = roles[number % 2]
+                messages.append({'role': role, 'parts': [comment.text]})
+            if not (reply := ai.reply(messages, post_settings.creativity)):
+                reply = post_settings.base_reply
+            instance.add_child(user_id=post.user.id, text=reply, is_ai_comment=True)
+        else:
+            return
+    else:
+        return
