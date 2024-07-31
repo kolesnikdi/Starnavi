@@ -8,7 +8,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY')  or '*' * 50
+SECRET_KEY = os.environ.get('SECRET_KEY') or '*' * 50
 
 DEBUG = True
 
@@ -99,4 +99,4 @@ MEDIA_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-JWT_TTL = timedelta(seconds=15*60)
+JWT_TTL = timedelta(seconds=15 * 60)
