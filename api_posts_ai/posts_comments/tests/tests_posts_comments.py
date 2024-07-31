@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timedelta
 
 from api_posts_ai.authentication import create_token
 from api_posts_ai.constants import ReplyDialogue
@@ -71,7 +72,8 @@ class TestPostsComments:
         assert reply.text
         assert reply.is_blocked is False
         text_2 = randomizer.random_name_limit(50)
-        response_2 = api_client.post(f'/{reply.id}', json={'text': text_2}, headers={'Authorization': f'Bearer {token}'})
+        response_2 = api_client.post(f'/{reply.id}', json={'text': text_2},
+                                     headers={'Authorization': f'Bearer {token}'})
         assert response_2.status_code == 201
         comment_2 = Post.objects.filter(user_id=user_2.id).last()
         reply_2 = comment_2.get_descendants().first()
@@ -120,7 +122,8 @@ class TestPostsComments:
         assert reply.text
         assert reply.is_blocked is False
         text_2 = randomizer.random_name_limit(50)
-        response_2 = api_client.post(f'/{reply.id}', json={'text': text_2}, headers={'Authorization': f'Bearer {token}'})
+        response_2 = api_client.post(f'/{reply.id}', json={'text': text_2},
+                                     headers={'Authorization': f'Bearer {token}'})
         assert response_2.status_code == 201
         comment_2 = Post.objects.filter(user_id=user_2.id).last()
         reply_2 = comment_2.get_descendants().first()
@@ -143,7 +146,8 @@ class TestPostsComments:
         old_text = new_post.text
         text = randomizer.random_name_limit(50)
         token = create_token(user)
-        response = api_client.patch(f'/{new_post.id}', json={'text': text}, headers={'Authorization': f'Bearer {token}'})
+        response = api_client.patch(f'/{new_post.id}', json={'text': text},
+                                    headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
         response_json = response.json()
         assert response_json['id'] == Post.objects.filter(user_id=user.id).last().id
@@ -156,7 +160,8 @@ class TestPostsComments:
     def test_update_post_comment_not_owner(self, api_client, randomizer, user_2, new_post):
         text = randomizer.random_name_limit(50)
         token = create_token(user_2)
-        response = api_client.patch(f'/{new_post.id}', json={'text': text}, headers={'Authorization': f'Bearer {token}'})
+        response = api_client.patch(f'/{new_post.id}', json={'text': text},
+                                    headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 404
         response_json = response.json()
         assert response_json['detail'] == 'Not Found'
@@ -201,7 +206,6 @@ class TestPostsComments:
         assert len(response_json['descendants']) == post_comments[0].get_children_count()
         assert f"'id': {len(post_comments)}" in str(response_json)
 
-
     @pytest.mark.django_db
     def test_update_post_settings_valid_data(self, api_client, user, new_post):
         settings = {
@@ -212,7 +216,8 @@ class TestPostsComments:
             'base_reply': 'Stop talking',
         }
         token = create_token(user)
-        response = api_client.patch(f'/{new_post.id}/settings', json=settings, headers={'Authorization': f'Bearer {token}'})
+        response = api_client.patch(f'/{new_post.id}/settings', json=settings,
+                                    headers={'Authorization': f'Bearer {token}'})
         assert 200 == response.status_code
         response_json = response.json()
         new_post_settings = new_post.settings.get()
@@ -232,13 +237,14 @@ class TestPostsComments:
             'base_reply': '',
         }
         token = create_token(user)
-        response = api_client.patch(f'/{new_post.id}/settings', json=settings, headers={'Authorization': f'Bearer {token}'})
+        response = api_client.patch(f'/{new_post.id}/settings', json=settings,
+                                    headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 422
         response_json = response.json()
         assert response_json['detail'][0]['msg'] == 'Input should be less than or equal to 1'
 
     @pytest.mark.django_db
-    def test_comments_daily_breakdown(self, api_client, user, daily_breakdown_data):
+    def test_comments_daily_breakdown_success(self, api_client, user, daily_breakdown_data):
         token = create_token(user)
         url = f'/daily-breakdown?date_from={daily_breakdown_data.date_from}&date_to={daily_breakdown_data.date_to}'
         response = api_client.get(url, headers={'Authorization': f'Bearer {token}'})
@@ -246,4 +252,67 @@ class TestPostsComments:
         response_json = response.json()
         assert daily_breakdown_data.date_from in response_json
         assert daily_breakdown_data.date_to in response_json
+        date_from = datetime.strptime(daily_breakdown_data.date_from, '%Y-%m-%d').date()
+        date_to = datetime.strptime(daily_breakdown_data.date_to, '%Y-%m-%d').date()
+        posts = daily_breakdown_data.filter(depth=1).order_by('path')
+        comments = daily_breakdown_data.exclude(depth=1).order_by('path')
+        post_2_blocked_comments = comments.filter(
+            path__startswith=posts[1].path,
+            depth__gte=posts[1].depth,
+            created_date__date=date_from,
+            is_blocked=True)
+        post_2_clean_comments = comments.filter(
+            path__startswith=posts[1].path,
+            depth__gte=posts[1].depth,
+            created_date__date=date_from,
+            is_blocked=False)
+        assert response_json[daily_breakdown_data.date_from][f'post № {posts[1].id}'][
+                   'blocked_comments'] == len(post_2_blocked_comments)
+        assert response_json[daily_breakdown_data.date_from][f'post № {posts[1].id}'][
+                   'clean_comments'] == len(post_2_clean_comments)
+        assert response_json[daily_breakdown_data.date_from]['total_blocked_comments'] == len(comments.filter(
+            created_date__date=date_from,
+            is_blocked=True))
+        assert response_json[daily_breakdown_data.date_from]['total_clean_comments'] == len(comments.filter(
+            created_date__date=date_from,
+            is_blocked=False))
+        post_1_blocked_comments = comments.filter(
+            path__startswith=posts[0].path,
+            depth__gte=posts[0].depth,
+            created_date__date=date_to,
+            is_blocked=True)
+        post_1_clean_comments = comments.filter(
+            path__startswith=posts[0].path,
+            depth__gte=posts[0].depth,
+            created_date__date=date_to,
+            is_blocked=False)
+        assert response_json[daily_breakdown_data.date_to][f'post № {posts[0].id}'][
+                   'blocked_comments'] == len(post_1_blocked_comments)
+        assert response_json[daily_breakdown_data.date_to][f'post № {posts[0].id}'][
+                   'clean_comments'] == len(post_1_clean_comments)
+        assert response_json[daily_breakdown_data.date_to]['total_blocked_comments'] == len(comments.filter(
+            created_date__date=date_to,
+            is_blocked=True))
+        assert response_json[daily_breakdown_data.date_to]['total_clean_comments'] == len(comments.filter(
+            created_date__date=date_to,
+            is_blocked=False))
 
+    @pytest.mark.django_db
+    def test_comments_daily_breakdown_wrong_period(self, api_client, user, ):
+        token = create_token(user)
+        date_to = datetime.now()
+        date_from = date_to - timedelta(days=4)
+        date_to = date_to.strftime('%Y-%m-%d')
+        date_from = date_from.strftime('%Y-%m-%d')
+        url = f'/daily-breakdown?date_from={date_from}&date_to={date_to}'
+        response = api_client.get(url, headers={'Authorization': f'Bearer {token}'})
+        assert response.status_code == 200
+        response_json = response.json()
+        assert date_from in response_json
+        assert date_to in response_json
+        assert 'post №' not in response_json[date_from]
+        assert 'post №' not in response_json[date_to]
+        assert response_json[date_from]['total_blocked_comments'] == 0
+        assert response_json[date_from]['total_clean_comments'] == 0
+        assert response_json[date_to]['total_blocked_comments'] == 0
+        assert response_json[date_to]['total_clean_comments'] == 0

@@ -1,8 +1,7 @@
 from django.db.models import QuerySet
 
 from collections import defaultdict
-from datetime import timedelta, date, datetime, time
-import pytz
+from datetime import timedelta, date
 
 from posts_comments.models import Post
 from posts_comments.schemas import PostSortSchema
@@ -26,9 +25,6 @@ def cascade_display(queryset: QuerySet):
 
 
 def make_daily_breakdown(date_from: date, date_to: date):
-    # tzinfo = pytz.UTC
-    # date_from = tzinfo.localize(datetime.combine(date_from, time.min))
-    # date_to = tzinfo.localize(datetime.combine(date_to, time.max))
     daily_breakdown = {}
     all_posts_comments = Post.objects.filter(created_date__date__range=(date_from, date_to))
     posts = all_posts_comments.filter(depth=1).order_by('path')

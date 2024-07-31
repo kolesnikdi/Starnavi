@@ -1,7 +1,9 @@
 from ninja import Schema
-from pydantic import constr, conint, confloat, RootModel, BaseModel
+from pydantic import constr, conint, confloat, RootModel
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List
+from typing import Dict, Union
+from pydantic import BaseModel
 
 
 class PostCommentBreakdown(BaseModel):
@@ -9,17 +11,12 @@ class PostCommentBreakdown(BaseModel):
     clean_comments: int
 
 
-class DailyBreakdownDate(BaseModel):
-    total_blocked_comments: int
-    total_clean_comments: int
-    posts: Optional[Dict[str, PostCommentBreakdown]] = None
+class DailyBreakdownDate(RootModel):
+    root: Dict[str, Union[PostCommentBreakdown, int]]
 
 
 class DailyBreakdownResponseSchema(RootModel):
     root: Dict[str, DailyBreakdownDate]
-
-
-DailyBreakdownResponseSchema.model_rebuild()
 
 
 class PostSettingsSchema(Schema):

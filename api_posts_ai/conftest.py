@@ -106,7 +106,7 @@ def daily_breakdown_data(new_post_2, new_post, user, user_2, randomizer):
     third.update(created_date=third_date)
     second = add_comments(new_post_2, user_2, user, randomizer, second_date, depth=4)
     second.update(created_date=second_date)
-    first = add_comments(new_post, user, user_2, randomizer, created_date, depth=5)
+    first = add_comments(new_post_2, user_2, user, randomizer, created_date, depth=5)
     daily_breakdown_data = Post.objects.all()
     daily_breakdown_data.date_to = created_date.strftime('%Y-%m-%d')
     daily_breakdown_data.date_from = third_date.strftime('%Y-%m-%d')

@@ -99,4 +99,4 @@ MEDIA_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-JWT_TTL = timedelta(seconds=15*60)
+JWT_TTL = timedelta(seconds=15 * 60)
