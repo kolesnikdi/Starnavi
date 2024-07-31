@@ -6,7 +6,7 @@
 - API client: Gemini API 
   - Does not support Ukrainian localisation. To work from the territory of Ukraine, use a VPN
 - Autotesting: Pytest
-- Documentation: Swagger
+- Documentation: [built-in Ninja documentation](http://127.0.0.1:8000/api/docs)
 
 ## Project launch. 
 - git clone https://github.com/kolesnikdi/Starnavi.git
@@ -57,8 +57,7 @@
 - The Gemini API is implemented as a class that has 2 separate interfaces. is_swearing and reply. This will allow you to
   customise each interface to suit your needs, as well as separately handle exceptions from the Gemini API
 
-### Інші посилання 
-[swagger](http://127.0.0.1:8000/api/docs).
+
 
 
 # api_posts_ai
@@ -69,7 +68,7 @@
 - API клієнт: Gemini API 
 - - не підтримує Українську Локалізацію. Для роботи з території України використовуйте VPN
 - Автотестування: Pytest
-- Документація: Swagger
+- Документація: [built-in Ninja documentation](http://127.0.0.1:8000/api/docs)
 
 ## Запуск проекту 
 - git clone https://github.com/kolesnikdi/Starnavi.git
@@ -118,7 +117,3 @@
     запити до БД.
 - Gemini API реалізований як клас, що має 2 окремі інтерфейси. is_swearing та reply. Це дозволить налаштовувати кожен 
   інтерфейс під потреби, а також окремо оброблювати винятки від Gemini API
-
-### Інші посилання 
-[swagger](http://127.0.0.1:8000/api/docs).
-
